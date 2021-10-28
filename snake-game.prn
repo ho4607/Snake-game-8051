@@ -1,0 +1,798 @@
+                ;LCD Write/Read DEFINE
+                ;******************************************
+ FFE0           LCDWIR	EQU	0FFE0H
+ FFE1           LCDWDR	EQU	0FFE1H
+ FFE2           LCDRIR	EQU	0FFE2H
+ FFE3           LCDRDR	EQU	0FFE3H
+                
+                ;Variable Define
+                ;******************************************
+                ;(LCD VARIABLE)
+ 0020           INST	EQU	20H
+ 0021           DATA	EQU	21H
+ 0022           LROW	EQU	22H
+ 0023           LCOL	EQU	23H
+ 0024           NUMFONT	EQU	24H
+ 0025           FDPL	EQU	25H
+ 0026           FDPH	EQU	26H
+                
+                ;(KEY INTERFACE VARIABLE)
+                ;*****************************************
+ 0030           VSEC	EQU	30H
+ 0031           VMIN	EQU	31H
+ 0032           VHOUR	EQU	32H
+ 0033           VBUF	EQU	33H
+                
+                ;R/W LCD INSTRUCTION DEFINE 
+                ;******************************************
+ 0001           CLEAR	 EQU	01H
+ 0002           CUR_HOME EQU	02H
+ 0006           ENTRY2	 EQU	06H
+ 000E           DCB6	 EQU	0EH
+ 0038           FUN5	 EQU	38H
+ 0080           LINE_1	 EQU	80H
+ 00C0           LINE_2	 EQU	0C0H
+                
+                ;KEY INTERFACE INSTRUCTION DEFINE
+                ;*****************************************
+ FFF0           DATAOUT	EQU	0FFF0H
+ FFF1           DATAIN	EQU	0FFF1H
+                
+                ;KEY INTERFACE DEFINE KEY& CONSTANT
+                ;*****************************************
+ 0005           REP_COUNT EQU	5
+ 0010           RWKEY	EQU	10H
+ 0011           COMMA	EQU	11H
+ 0012           PERIOD	EQU	12H
+ 0013           GO	EQU	13H
+ 0014           REG	EQU	14H
+ 0015           CD	EQU	15H
+ 0016           INCR	EQU	16H
+ 0017           ST	EQU	17H
+ 0018           RST	EQU	18H
+                
+                ;7-SEGMENT ARRAY DEFINE
+                ;*******************************************
+ FFC1           SEG1	EQU	0FFC1H	;SEC
+ FFC2           SEG2	EQU	0FFC2H	;MIN
+ FFC3           SEG3	EQU	0FFC3H  ;HOUR
+                
+                
+                ;DOT MATRIX COLOR CHANGE
+                ;******************************************
+ FFC5           COLGREEN	EQU	0FFC5H
+ FFC6           COLRED	EQU	0FFC6H
+ FFC7           ROW	EQU	0FFC7H
+                
+                ;TIMER DEFINE
+                ;******************************************
+ 0040           COUNTER	EQU	0040H
+ 0041           NUM1	EQU	0041H
+ 0042           NUM2	EQU	0042H
+                
+ 8000           	ORG 	8000H
+                
+                
+                ;GAME MAIN                             : 메인에 해당
+                ;****************************************************************************
+                ;****************************************************************************
+ 8000 12841E    INTRO:	CALL	RANDOM
+ 8003 128224    INTRO1:	CALL	LCD_INIT
+ 8006 1281BA    	CALL	LED_INIT
+ 8009 1281D4    	CALL	DOTMATRIX_INIT
+ 800C 028054    	JMP	GAME_INTRO
+                
+ 800F           MAIN: 	
+ 800F 1281AA    	CALL 	SCORE
+ 8012 1281FF    	CALL	DOTSNAKE
+ 8015           MOVCHECK:
+ 8015 74E0      	MOV	A,#11100000B
+ 8017 128341    	CALL	SUBKEY
+ 801A B4FF7C    	CJNE	A,#0FFH,PRESSBTN
+ 801D 80F0      	JMP	MAIN
+                
+ 801F           ;****************************************************************************
+                
+ 801F           ;COMMON SUBROUTIONE 공동으로 사용되는 서브루틴
+ 801F           ;*****************************************
+ 801F EF        DELAY: 	MOV	A,R7		;딜레이 서브루틴
+ 8020 C0E0      	PUSH	A
+ 8022 EE        	MOV	A,R6
+ 8023 C0E0      	PUSH	A
+ 8025 ED        	MOV	A,R5
+ 8026 C0E0      	PUSH	A
+                
+ 8028 7F02      	MOV R7, #02H
+ 802A 7E0F      DELAY1: MOV R6, #00FH
+ 802C 7DA0      DELAY2: MOV R5, #0A0H
+ 802E DDFE      DELAY3: DJNZ R5, DELAY3
+ 8030 DEFA      	DJNZ R6, DELAY2
+ 8032 DFF6      	DJNZ R7, DELAY1
+                
+ 8034 D0E0      	POP	A
+ 8036 FD        	MOV	R5,A
+ 8037 D0E0      	POP	A
+ 8039 FE        	MOV	R6,A
+ 803A D0E0      	POP	A
+ 803C FF        	MOV	R7,A
+ 803D 22        	RET
+                
+ 803E           BTN_DELAY: 	        	;버튼 바운스에 사용되는 딜레이
+ 803E EF        	MOV	A,R7
+ 803F C0E0      	PUSH	A
+ 8041 EE        	MOV	A,R6
+ 8042 C0E0      	PUSH	A
+ 8044 7F20      	MOV 	R7,#020H
+ 8046           REPEAT: 
+ 8046 7EFF      	MOV 	R6,#0FFH 
+ 8048 EE        	MOV	A,R6
+ 8049 DEFE      	DJNZ 	R6,$
+ 804B DFF9      	DJNZ 	R7,REPEAT
+                	
+ 804D D0E0      	POP	A
+ 804F FE        	MOV	R6,A
+ 8050 D0E0      	POP	A
+ 8052 FF        	MOV	R7,A
+ 8053 22        	RET
+                
+                
+ 8054           ;GAME SUBROUTINE
+ 8054           ;******************************************
+ 8054           GAME_INTRO:			;게임 시작전 인트 메세지 서브루틴
+ 8054 752201    	MOV	LROW,#01H
+ 8057 752302    	MOV	LCOL,#02H
+ 805A 128280    	CALL	CUR_MOV
+                
+ 805D 9082C0    	MOV	DPTR,#MESSAGE1
+ 8060 858225    	MOV	FDPL,DPL
+ 8063 858326    	MOV	FDPH,DPH
+ 8066 75240E    	MOV	NUMFONT,#0EH
+ 8069 12823D    	CALL	DISFONT
+                
+ 806C 752202    	MOV	LROW,#02H
+ 806F 752302    	MOV	LCOL,#02H
+ 8072 128280    	CALL	CUR_MOV	
+                
+ 8075 9082CF    	MOV	DPTR,#MESSAGE2
+ 8078 858225    	MOV	FDPL,DPL
+ 807B 858326    	MOV	FDPH,DPH
+ 807E 75240E    	MOV	NUMFONT,#0EH
+ 8081 12823D    	CALL	DISFONT
+                	
+ 8084 128305    	CALL	FINDKEYCODE
+ 8087 128365    	CALL	BOUNCE
+ 808A 1283D0    	CALL	TIMER_START
+ 808D 7910      	MOV	R1,#00010000B
+ 808F 7A10      	MOV	R2,#00010000B
+                
+ 8091 12817A    	CALL	FEED
+ 8094 1281FF    	CALL	DOTSNAKE
+ 8097 010F      	JMP	MAIN
+                
+                
+ 8099           PRESSBTN:			;버튼이 눌리면 어떤 값인지 분석
+ 8099 128305    	CALL	FINDKEYCODE	;키 입력 체크
+ 809C FD        	MOV	R5,A		;R5에 키 입력값 백업
+ 809D B40A02    	CJNE	A,#0AH,NOT_TIMERPAUSE
+ 80A0 C28C      	CLR	TCON.TR0
+ 80A2           NOT_TIMERPAUSE:		
+ 80A2 128365    	CALL	BOUNCE		;BOUNCE 현상 제거
+                
+ 80A5 1280F6    	CALL	SNAKEMOVE
+ 80A8 1280AE    	CALL	PAUSE
+ 80AB 0280ED    	JMP	GAMERESET
+                	
+ 80AE           PAUSE:				;B버튼일 경우, 일시정지
+ 80AE C0E0      	PUSH	A
+ 80B0 E9        	MOV	A,R1
+ 80B1 C0E0      	PUSH	A
+ 80B3 EA        	MOV	A,R2
+ 80B4 C0E0      	PUSH	A
+                
+ 80B6 C3        	CLR	C
+ 80B7 ED        	MOV	A,R5
+ 80B8 B40B29    	CJNE	A,#0BH,NOTPAUSE
+                
+ 80BB C28C      	CLR	TCON.TR0
+                	
+ 80BD 752201    	MOV	LROW,#01H
+ 80C0 752300    	MOV	LCOL,#00H
+ 80C3 128280    	CALL	CUR_MOV
+                
+ 80C6 9082F1    	MOV	DPTR,#MESSAGE5
+ 80C9 858225    	MOV	FDPL,DPL
+ 80CC 858326    	MOV	FDPH,DPH
+ 80CF 752414    	MOV	NUMFONT,#14H
+ 80D2 12823D    	CALL	DISFONT
+                
+ 80D5 128305    	CALL	FINDKEYCODE
+ 80D8 128365    	CALL	BOUNCE
+                	
+ 80DB D28C      	SETB	TCON.TR0
+                	
+ 80DD A941      	MOV	R1,NUM1
+ 80DF AA42      	MOV	R2,NUM2
+ 80E1 1283F5    	CALL	LCDTIMER
+ 80E4           NOTPAUSE:			;버튼 입력이 B가 아닌경우
+ 80E4 D0E0      	POP	A
+ 80E6 FA        	MOV	R2,A
+ 80E7 D0E0      	POP	A
+ 80E9 F9        	MOV	R1,A
+ 80EA D0E0      	POP	A
+ 80EC 22        	RET
+                
+ 80ED           GAMERESET:			;A 버튼일 경우, 게임 다시시작
+ 80ED ED        	MOV	A,R5
+ 80EE C3        	CLR	C
+ 80EF B40A02    	CJNE	A,#0AH,NOTGAMERESET
+ 80F2 0103      	JMP	INTRO1
+ 80F4           NOTGAMERESET:
+ 80F4 010F      	JMP	MAIN
+                
+ 80F6           SNAKEMOVE:			;키 입력에 따른 SNAKE 움직임
+ 80F6 C3        	CLR	C
+ 80F7 ED        	MOV	A,R5
+ 80F8 6022      	JZ	LEFT		;키 입력이 0이라면 왼쪽으로 감
+ 80FA ED        	MOV	A,R5
+ 80FB 9401      	SUBB	A,#01H
+ 80FD 6014      	JZ	DOWN		;키 입력이 1이라면 아래로 감
+ 80FF ED        	MOV	A,R5	
+ 8100 9402      	SUBB	A,#02H
+ 8102 6021      	JZ	RIGHT		;키 입력이 2라면 오른쪽으로 감
+ 8104 ED        	MOV	A,R5
+ 8105 9405      	SUBB	A,#05H
+ 8107 6001      	JZ	UP		;키 입력이 5라면 위로 감
+ 8109 22        	RET
+                
+ 810A           				;뱀이 움직이는 동작 서브루틴
+ 810A E9        UP:	MOV	A,R1		
+ 810B 13        	RRC	A
+ 810C 4020      	JC	SNAKECHECK
+ 810E F9        	MOV	R1,A
+ 810F 1281FF    	CALL	DOTSNAKE
+ 8112 22        	RET
+ 8113 E9        DOWN:	MOV	A,R1
+ 8114 33        	RLC	A
+ 8115 4017      	JC	SNAKECHECK
+ 8117 F9        	MOV	R1,A
+ 8118 1281FF    	CALL	DOTSNAKE
+ 811B 22        	RET
+ 811C EA        LEFT:	MOV	A,R2
+ 811D 13        	RRC	A
+ 811E 400E      	JC	SNAKECHECK
+ 8120 FA        	MOV	R2,A
+ 8121 1281FF    	CALL	DOTSNAKE
+ 8124 22        	RET
+ 8125 EA        RIGHT:	MOV	A,R2
+ 8126 33        	RLC	A
+ 8127 4005      	JC	SNAKECHECK
+ 8129 FA        	MOV	R2,A
+ 812A 1281FF    	CALL	DOTSNAKE
+ 812D 22        	RET
+                
+                
+ 812E           SNAKECHECK: 			;SNAKE가 벽에 닿았는지 체크 
+ 812E 1281D4    	CALL	DOTMATRIX_INIT
+ 8131 7BFF      	MOV	R3,#11111111B
+ 8133 7CFF      	MOV	R4,#11111111B
+                
+ 8135 C28C      	CLR	TCON.TR0
+                	
+ 8137 752201    	MOV	LROW,#01H
+ 813A 752305    	MOV	LCOL,#05H
+ 813D 128280    	CALL	CUR_MOV
+                
+ 8140 9082E8    	MOV	DPTR,#MESSAGE4
+ 8143 858225    	MOV	FDPL,DPL
+ 8146 858326    	MOV	FDPH,DPH
+ 8149 752409    	MOV	NUMFONT,#09H
+ 814C 12823D    	CALL	DISFONT
+                
+ 814F 128219    STOP:	CALL 	DOTCOLR		
+ 8152 111F      	CALL	DELAY
+ 8154 111F      	CALL	DELAY
+ 8156 111F      	CALL	DELAY
+ 8158 1281D4    	CALL	DOTMATRIX_INIT
+ 815B 111F      	CALL	DELAY
+ 815D 111F      	CALL	DELAY
+ 815F 111F      	CALL	DELAY
+                
+ 8161 74E0      	MOV	A,#11100000B
+ 8163 128341    	CALL	SUBKEY
+ 8166 B4FF02    	CJNE	A,#0FFH,RESTART
+ 8169 80E4      	JMP	STOP
+ 816B           RESTART:
+ 816B 128305    	CALL	FINDKEYCODE	;키 입력 체크
+ 816E FD        	MOV	R5,A
+ 816F 128365    	CALL	BOUNCE		;BOUNCE 현상 제거
+ 8172 ED        	MOV	A,R5
+ 8173 B40A02    	CJNE	A,#0AH,NOTGAMERESET1
+ 8176 0103      	JMP	INTRO1
+ 8178           NOTGAMERESET1:
+ 8178 80D5      	JMP	STOP
+                
+ 817A           FEED:				;먹이 생성
+ 817A E8        	MOV	A,R0
+ 817B C0E0      	PUSH	A
+ 817D E9        	MOV	A,R1
+ 817E C0E0      	PUSH	A
+ 8180 EA        	MOV	A,R2
+ 8181 C0E0      	PUSH	A
+                
+ 8183 E58B      	MOV	A,TL1
+ 8185 75F003    	MOV	B,#3
+ 8188 A4        	MUL	AB
+ 8189 F8        	MOV	R0,A
+ 818A 540F      	ANL	A,#00001111B
+ 818C F9        	MOV	R1,A
+ 818D E8        	MOV	A,R0
+ 818E 54F0      	ANL	A,#11110000B
+ 8190 C4        	SWAP	A
+ 8191 FA        	MOV	R2,A
+ 8192 7B01      	MOV	R3,#00000001B
+ 8194 7C01      	MOV	R4,#00000001B
+                
+ 8196 EB        SETROW:	MOV	A,R3		
+ 8197 03        	RR	A
+ 8198 FB        	MOV	R3,A
+ 8199 D9FB      	DJNZ	R1,SETROW
+                
+ 819B EC        SETCOL:	MOV	A,R4
+ 819C 03        	RR	A
+ 819D FC        	MOV	R4,A
+ 819E DAFB      	DJNZ	R2,SETCOL
+                
+ 81A0 D0E0      	POP	A
+ 81A2 FA        	MOV	R2,A
+ 81A3 D0E0      	POP	A
+ 81A5 F9        	MOV	R1,A
+ 81A6 D0E0      	POP	A
+ 81A8 F8        	MOV	R0,A
+ 81A9 22        	RET
+                
+ 81AA E9        SCORE:	MOV	A,R1		;SCORE : 점수획득
+ 81AB 9B        	SUBB	A,R3
+ 81AC 6001      	JZ	CHECKCOL
+ 81AE 22        	RET
+ 81AF           CHECKCOL:
+ 81AF EA        	MOV	A,R2
+ 81B0 9C        	SUBB	A,R4
+ 81B1 6001      	JZ	GETSCORE
+ 81B3 22        	RET
+ 81B4           GETSCORE:
+ 81B4 317A      	CALL	FEED
+ 81B6 1281CB    	CALL	UPSCORE
+ 81B9 22        	RET
+                
+ 81BA           LED_INIT:     ; LED CLEAR	;더미 LED값 초기화
+ 81BA 7400      	MOV	A,#00H
+ 81BC 7800      	MOV	R0,#00H
+                
+ 81BE 90FFC1    	MOV	DPTR,#SEG1
+ 81C1 F0        	MOVX	@DPTR,A
+                
+ 81C2 90FFC2    	MOV	DPTR,#SEG2
+ 81C5 F0        	MOVX	@DPTR,A
+                
+ 81C6 90FFC3    	MOV	DPTR,#SEG3
+ 81C9 F0        	MOVX	@DPTR,A
+ 81CA 22        	RET
+                
+ 81CB           UPSCORE:			;UPSCORE : 7-SEGEMENT ARRAY에 SCORE 1 증가
+ 81CB           				;R0 : SCORE 저장
+ 81CB E8        	MOV	A,R0
+ 81CC 04        	INC	A
+ 81CD D4        	DA	A
+ 81CE F8        	MOV	R0,A
+                	
+ 81CF 90FFC1    	MOV	DPTR,#SEG1	
+ 81D2 F0        	MOVX	@DPTR,A
+ 81D3 22        	RET
+                
+ 81D4           ;DOTMATRIX SUBROUTINE
+ 81D4           ;**********************************************************
+ 81D4           				;R1 : ROW GREEN의 값
+ 81D4           				;R2 : COLUMN GREEN의 값
+ 81D4           				;R3 : ROW RED의 값
+ 81D4           				;R4 : COLUMN RED의 값
+ 81D4           DOTMATRIX_INIT: 		;DOT MATRIX INTIALIZE
+ 81D4 C0E0      	PUSH	A
+ 81D6 E9        	MOV	A,R1
+ 81D7 C0E0      	PUSH	A
+ 81D9 EA        	MOV	A,R2
+ 81DA C0E0      	PUSH	A
+ 81DC EB        	MOV	A,R3
+ 81DD C0E0      	PUSH	A
+ 81DF EC        	MOV	A,R4
+ 81E0 C0E0      	PUSH	A
+                
+ 81E2 7900      	MOV	R1,#00H
+ 81E4 7A00      	MOV	R2,#00H
+ 81E6 7B00      	MOV	R3,#00H
+ 81E8 7C00      	MOV	R4,#00H
+                				
+ 81EA 12820E    	CALL	DOTCOLG		;DOT MATRIX에 현재 값 쓰기
+ 81ED 128219    	CALL	DOTCOLR
+                	
+ 81F0 D0E0      	POP	A
+ 81F2 FC        	MOV	R4,A
+ 81F3 D0E0      	POP	A
+ 81F5 FB        	MOV	R3,A
+ 81F6 D0E0      	POP	A
+ 81F8 FA        	MOV	R2,A
+ 81F9 D0E0      	POP	A
+ 81FB F9        	MOV	R1,A
+ 81FC D0E0      	POP	A
+ 81FE 22        	RET
+                
+ 81FF           DOTSNAKE:			;뱀과 먹이 출력
+ 81FF 31D4      	CALL	DOTMATRIX_INIT
+ 8201 12820E    	CALL	DOTCOLG
+ 8204 111F      	CALL	DELAY
+ 8206 31D4      	CALL	DOTMATRIX_INIT
+ 8208 128219    	CALL	DOTCOLR
+ 820B 111F      	CALL	DELAY
+ 820D 22        	RET
+                
+ 820E           DOTCOLG:			;DOTCOLG : DOT MATRIX GREEN LED 값 쓰기
+ 820E 90FFC5    MOV	DPTR,#COLGREEN
+ 8211 EA        	MOV	A,R2
+ 8212 F0        	MOVX	@DPTR,A
+                
+ 8213 90FFC7    	MOV	DPTR,#ROW
+ 8216 E9        	MOV	A,R1
+ 8217 F0        	MOVX	@DPTR,A
+ 8218 22        	RET
+                
+ 8219           DOTCOLR:			;DOTCOLR : DOT MATRIX RED LED 값 쓰기
+ 8219 90FFC6    	MOV	DPTR,#COLRED
+ 821C EC        	MOV	A,R4
+ 821D F0        	MOVX	@DPTR,A
+                
+ 821E 90FFC7    	MOV	DPTR,#ROW
+ 8221 EB        	MOV	A,R3
+ 8222 F0        	MOVX	@DPTR,A
+ 8223 22        	RET
+                
+ 8224           ;LCD SUBROUTINES
+ 8224           ;******************************************
+ 8224           LCD_INIT:			; LCD 값 초기화
+ 8224 752038    	MOV	INST,#FUN5
+ 8227 12829E    	CALL	INSTWR
+ 822A 75200E    	MOV	INST,#DCB6
+ 822D 12829E    	CALL	INSTWR
+                		
+ 8230 752001    	MOV  	INST,#CLEAR
+ 8233 12829E    	CALL 	INSTWR
+                
+ 8236 752006    	MOV	INST,#ENTRY2
+ 8239 12829E    	CALL	INSTWR
+                
+ 823C 22        	RET
+                
+ 823D           DISFONT:			; LCD에 출력
+ 823D ED        	MOV	A,R5
+ 823E C0E0      	PUSH	A
+ 8240 7D00      	MOV	R5,#00H
+ 8242 852582    FLOOP:	MOV	DPL,FDPL
+ 8245 852683    	MOV	DPH,FDPH
+ 8248 ED        	MOV	A,R5
+ 8249 93        	MOVC	A,@A+DPTR
+ 824A F521      	MOV	DATA,A
+                
+ 824C 1282A8    	CALL	DATAWR
+ 824F 0D        	INC	R5
+ 8250 ED        	MOV	A,R5
+ 8251 B524EE    	CJNE	A,NUMFONT,FLOOP
+ 8254 D0E0      	POP	A
+ 8256 FD        	MOV	R5,A
+ 8257 22        	RET
+                
+ 8258           DISFONT1:			; 초 단위 출력
+ 8258 E9        	MOV	A,R1
+ 8259 C0E0      	PUSH	A
+ 825B 852582    	MOV	DPL,FDPL
+ 825E 852683    	MOV	DPH,FDPH
+ 8261 E9        	MOV	A,R1
+ 8262 93        	MOVC	A,@A+DPTR
+ 8263 F521      	MOV	DATA,A
+ 8265 1282A8    	CALL	DATAWR
+ 8268 D0E0      	POP	A
+ 826A F9        	MOV	R1,A
+ 826B 22        	RET
+                
+ 826C           DISFONT2:			; 분 단위 출력
+ 826C EA        	MOV	A,R2
+ 826D C0E0      	PUSH	A
+ 826F 852582    	MOV	DPL,FDPL
+ 8272 852683    	MOV	DPH,FDPH
+ 8275 EA        	MOV	A,R2
+ 8276 93        	MOVC	A,@A+DPTR
+ 8277 F521      	MOV	DATA,A
+ 8279 1282A8    	CALL	DATAWR
+ 827C D0E0      	POP	A
+ 827E FA        	MOV	R2,A
+ 827F 22        	RET
+                
+ 8280           CUR_MOV:			; LCD 커서 이동
+ 8280 E522      	MOV	A,LROW
+ 8282 B4010C    	CJNE	A,#01H,NEXT
+ 8285 7480      	MOV	A,#LINE_1
+ 8287 2523      	ADD	A,LCOL
+ 8289 F520      	MOV	INST,A
+ 828B 12829E    	CALL	INSTWR
+ 828E 02829D    	JMP	RET_POINT
+                
+ 8291 B40209    NEXT:	CJNE	A,#02H,RET_POINT	
+ 8294 74C0      	MOV	A,#LINE_2
+ 8296 2523      	ADD	A,LCOL
+ 8298 F520      	MOV	INST,A
+ 829A 12829E    	CALL	INSTWR
+ 829D 22        RET_POINT: RET
+                
+ 829E 1282B2    INSTWR:	CALL	INSTRD
+ 82A1 90FFE0    	MOV	DPTR,#LCDWIR
+ 82A4 E520      	MOV	A,INST
+ 82A6 F0        	MOVX	@DPTR,A
+ 82A7 22        	RET
+ 82A8 1282B2    DATAWR:	CALL	INSTRD
+ 82AB 90FFE1    	MOV	DPTR,#LCDWDR
+ 82AE E521      	MOV	A,DATA
+ 82B0 F0        	MOVX	@DPTR,A
+ 82B1 22        	RET
+ 82B2           INSTRD:	
+ 82B2 90FFE2    	MOV	DPTR,#LCDRIR
+ 82B5 E0        	MOVX	A,@DPTR
+ 82B6 20E7F9    	JB	ACC.7,INSTRD
+ 82B9 22        	RET
+                
+ 82BA           CLEAR_DIS:			; LCD 초기화 
+ 82BA 752001    	MOV  	INST,#CLEAR
+ 82BD 519E      	CALL 	INSTWR	
+ 82BF 22        	RET
+                
+ 82C0           ;kEY_DISPLAY:			
+ 82C0           	;MOV	DPTR,#DLED
+ 82C0           	;MOVX	@DPTR,A
+ 82C0           	;RET
+                
+ 82C0           ; LCD에 출력될 메세지 
+ 82C0 50726573  MESSAGE1:	DB	'P','r','e','s','s'
+ 82C5 20416E79  		DB	' ','A','n','y',' '
+ 82CA 4B657920  		DB	'K','e','y',' ',' '
+                
+ 82CF 20202020  MESSAGE2:	DB	' ',' ',' ',' ','T'
+ 82D4 6F205374  		DB	'o',' ','S','t','a'
+ 82D9 72742020  		DB	'r','t',' ',' ',' '
+                
+ 82DE 30313233  MESSAGE3:	DB	'0','1','2','3','4'
+ 82E3 35363738  		DB	'5','6','7','8','9'
+                
+ 82E8 47414D45  MESSAGE4:	DB	'G','A','M','E',' '
+ 82ED 4F564552  		DB	'O','V','E','R'
+                
+ 82F1 20202020  MESSAGE5:	DB	' ',' ',' ',' ',' '
+ 82F6 20205041  		DB	' ',' ','P','A','U'
+ 82FB 53452020  		DB	'S','E',' ',' ',' '
+ 8300 20202020  		DB	' ',' ',' ',' ',' '
+                
+ 8305           ;KEY INTERFACE SUBROUTINE
+ 8305           ;********************************************
+ 8305           FINDKEYCODE:				
+ 8305 E8        	MOV	A,R0
+ 8306 C0E0      	PUSH	A
+ 8308 E9        	MOV	A,R1
+ 8309 C0E0      	PUSH	A
+ 830B EA        	MOV	A,R2
+ 830C C0E0      	PUSH	A
+                
+ 830E           INITIAL:
+ 830E 7900      	MOV	R1,#00H			;열의 값을 저장하는 R1 초기화
+ 8310 74EF      	MOV	A,#11101111B		;DATA OUT의 초기값
+ 8312 D3        	SETB	C
+                
+ 8313           COLSCAN:
+ 8313 F8        	MOV	R0,A			;R0에 DATA OUT 값 보관
+ 8314 09        	INC	R1			;열의 값 보관
+ 8315 128341    	CALL	SUBKEY			;KEY PAD 입력 확인
+                
+ 8318           ;A가 0FFH가 아니면 키 입력이 발생한 것이다
+ 8318 B4FF07    	CJNE	A,#0FFH,RSCAN
+ 831B E8        	MOV	A,R0
+ 831C D3        	SETB	C
+ 831D 13        	RRC	A			;다음 열로 이동
+ 831E 50EE      	JNC	INITIAL			;모든 열을 스캔하면, 다시 시작함
+ 8320 80F1      	JMP	COLSCAN			;다음 열 스캔
+                
+ 8322 7A00      RSCAN:	MOV	R2,#00H			;행의 값을 저장하는 R2 초기화
+ 8324           ROWSCAN:
+ 8324 13        	RRC	A			;어느 행이 1로 바뀌었는지 조사
+ 8325 5003      	JNC	MATRIX			;캐리가 발생하면 MATRIX 루프로 넘어감
+ 8327 0A        	INC	R2			;다음 행의 값 저장
+ 8328 80FA      	JMP	ROWSCAN			;다음 행 스캔
+                
+ 832A EA        MATRIX:	MOV	A,R2			;A에 행의 값 저장
+ 832B 75F005    	MOV	B,#05H			;KEY PAD는 5열로 이루어짐
+ 832E A4        	MUL	AB			;2차원 배열을 1차원 배열로 변환
+ 832F 29        	ADD	A,R1			;A에 열의 값을 더해 정확한 키입력 좌표 저장
+ 8330 12834A    	CALL	INDEX			;키 코드값을 A에 저장
+ 8333 F5F0      	MOV	B,A
+ 8335 D0E0      	POP	A
+ 8337 FA        	MOV	R2,A
+ 8338 D0E0      	POP	A
+ 833A F9        	MOV	R1,A
+ 833B D0E0      	POP	A
+ 833D F8        	MOV	R0,A
+ 833E E5F0      	MOV	A,B
+ 8340 22        	RET
+                
+ 8341 90FFF0    SUBKEY:	MOV	DPTR,#DATAOUT		;SUBKEY : DATA OUT으로 DATA를 내보내고,
+ 8344 F0        	MOVX	@DPTR,A			;DATA IN의 값을 가져옴
+ 8345 90FFF1    	MOV	DPTR,#DATAIN
+ 8348 E0        	MOVX	A,@DPTR
+ 8349 22        	RET
+                
+ 834A 83        INDEX:	MOVC	A,@A+PC
+ 834B 22        	RET
+                
+ 834C           KEYBASE:			
+ 834C 17        	DB	ST
+ 834D 16        	DB	INCR
+ 834E 15        	DB	CD
+ 834F 14        	DB	REG
+ 8350 13        	DB	GO
+ 8351 0C        	DB	0CH
+ 8352 0D        	DB	0DH
+ 8353 0E        	DB	0EH
+ 8354 0F        	DB	0FH
+ 8355 11        	DB	COMMA
+ 8356 08        	DB	08H
+ 8357 09        	DB	09H
+ 8358 0A        	DB	0AH
+ 8359 0B        	DB	0BH
+ 835A 12        	DB	PERIOD
+ 835B 04        	DB	04H
+ 835C 05        	DB	05H
+ 835D 06        	DB	06H
+ 835E 07        	DB	07H
+ 835F 10        	DB	RWKEY
+ 8360 00        	DB	00H
+ 8361 01        	DB	01H
+ 8362 02        	DB	02H
+ 8363 03        	DB	03H
+ 8364 18        	DB	RST
+                
+ 8365           BOUNCE:					;BOUNCE : BOUNCE 현상 제거
+ 8365 113E      	CALL 	BTN_DELAY		;시간을 지연
+ 8367 7400      	MOV	A,#0	
+ 8369 7141      	CALL	SUBKEY
+ 836B F4        	CPL	A			;눌린 키가 없으면 A는 0을 저장한다
+ 836C 70F7      	JNZ	BOUNCE			;눌린 키가 있으면 다시 체크한다
+                
+ 836E 113E      	CALL	BTN_DELAY		;시간을 지연
+ 8370 22        	RET
+                
+ 8371           ;TIMER SUBROUTINE
+ 8371           ;******************************************
+ 8371           SERVICE:  				; 타이머 시작 서브루틴, 인터럽트로 수행
+ 8371 C28C        	CLR     TCON.TR0  		; Timer Stop
+ 8373 758CE3      	MOV     TH0,#0E3H  
+ 8376 758A14      	MOV     TL0,#014H   
+ 8379 D28C        	SETB    TCON.TR0  		; Timer Start
+ 837B D54051      	DJNZ    COUNTER, RETURN 
+ 837E 754064     	MOV     COUNTER, #100 
+ 8381 C3          	CLR     C
+ 8382 028385      	JMP     TIMER
+                
+ 8385           TIMER:          			; TIMER CONTROL 서브루틴
+ 8385 C0E0      	PUSH	A
+ 8387 E9        	MOV	A,R1
+ 8388 C0E0      	PUSH	A
+ 838A EA        	MOV	A,R2
+ 838B C0E0      	PUSH	A
+                
+ 838D A941      	MOV	R1,NUM1
+ 838F AA42      	MOV	R2,NUM2
+ 8391 09        	INC	R1
+ 8392 B90A03    	CJNE	R1,#10,SETDEC
+ 8395 0A        	INC	R2
+ 8396 7900      	MOV	R1,#00H
+ 8398 BA0602    SETDEC:	CJNE	R2,#6,CALLLCD
+ 839B 7A00      	MOV	R2,#00H
+ 839D           CALLLCD:
+ 839D 752202    	MOV	LROW,#02H
+ 83A0 752308    	MOV	LCOL,#08H
+ 83A3 5180      	CALL	CUR_MOV
+                
+ 83A5 9082DE    	MOV	DPTR,#MESSAGE3
+ 83A8 858225    	MOV	FDPL,DPL
+ 83AB 858326    	MOV	FDPH,DPH
+ 83AE 516C      	CALL	DISFONT2
+                
+ 83B0 752202    	MOV	LROW,#02H
+ 83B3 752309    	MOV	LCOL,#09H
+ 83B6 5180      	CALL	CUR_MOV
+                
+ 83B8 9082DE    	MOV	DPTR,#MESSAGE3
+ 83BB 858225    	MOV	FDPL,DPL
+ 83BE 858326    	MOV	FDPH,DPH
+ 83C1 5158      	CALL	DISFONT1
+                
+ 83C3 8941      	MOV	NUM1,R1
+ 83C5 8A42      	MOV	NUM2,R2
+                	
+ 83C7 D0E0      	POP	A
+ 83C9 FA        	MOV	R2,A
+ 83CA D0E0      	POP	A
+ 83CC F9        	MOV	R1,A
+ 83CD D0E0      	POP	A
+ 83CF           RETURN: 
+ 83CF 32          	RETI   
+                
+ 83D0           TIMER_START: 				; 타이머 시작 서브루틴
+ 83D0 E9        	MOV	A,R1
+ 83D1 C0E0      	PUSH	A
+ 83D3 EA        	MOV	A,R2
+ 83D4 C0E0      	PUSH	A
+                
+ 83D6 754064      	MOV 	COUNTER, #100 		; 10ms X 100 = 1secS
+ 83D9 758CD8      	MOV 	TH0,#0D8H  		; FFFF - 2710(10000) = D8EF
+ 83DC 758AEF      	MOV     TL0,#0EFH
+ 83DF D28C        	SETB    TCON.TR0  		; Timer Start
+ 83E1 850041    	MOV	NUM1,00H
+ 83E4 A941      	MOV	R1,NUM1
+ 83E6 850042    	MOV	NUM2,00H
+ 83E9 AA42      	MOV	R2,NUM2
+ 83EB 1283F5    	CALL	LCDTIMER
+                
+ 83EE D0E0      	POP	A
+ 83F0 FA        	MOV	R2,A
+ 83F1 D0E0      	POP	A
+ 83F3 F9        	MOV	R1,A	
+ 83F4 22          	RET
+                
+ 83F5           LCDTIMER: 				; 타이머 값 LCD출력
+ 83F5 51BA      	CALL	CLEAR_DIS
+ 83F7 752202    	MOV	LROW,#02H
+ 83FA 752308    	MOV	LCOL,#08H
+ 83FD 5180      	CALL	CUR_MOV
+                
+ 83FF 9082DE    	MOV	DPTR,#MESSAGE3
+ 8402 858225    	MOV	FDPL,DPL
+ 8405 858326    	MOV	FDPH,DPH
+ 8408 516C      	CALL	DISFONT2
+                
+ 840A 752202    	MOV	LROW,#02H
+ 840D 752309    	MOV	LCOL,#09H
+ 8410 5180      	CALL	CUR_MOV
+                
+ 8412 9082DE    	MOV	DPTR,#MESSAGE3
+ 8415 858225    	MOV	FDPL,DPL
+ 8418 858326    	MOV	FDPH,DPH
+ 841B 5158      	CALL	DISFONT1
+ 841D 22        	RET
+                	
+                
+ 841E           RANDOM:					;RANDOM : 난수 생성
+ 841E 758901    	MOV 	TMOD,#00000001B		;GATE =0,TIMER MODE,RUN MODE 01
+ 8421 75A882    	MOV	IE,#10000010B		;EA 1, ET0 1
+ 8424 758D00    	MOV	TH1,#00H
+ 8427 758B00    	MOV	TL1,#00H
+ 842A C3        	CLR	C
+ 842B D28E      	SETB	TCON.TR1
+ 842D 22        	RET
+                
+                
+ 9F0B               	ORG     9F0BH
+ 9F0B 028371        	JMP     SERVICE
+ 9F0E           ;**********************************************
+ 9F0E           END
+
+ PUSAN NATIONAL UNIVERSITY  8051 CROSS-ASSEMBLER        VERSION 1.20
+
+                          Multiware & Image
+
+ SOURCE FILE NAME: E:\MY DRIVE\[_과목별]\2-2 마이크로프로세서\최정욱 교수님\실습\실습코드\파이널프로젝트\1조 박성호 원동언.ASM
+
+
+
